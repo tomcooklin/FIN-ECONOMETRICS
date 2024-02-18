@@ -1,0 +1,244 @@
+---
+title: "Econometrics - Project 2"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+date: "Tom Cooklin"
+---
+
+```{r}
+# Load required libraries
+library(readxl)
+library(forecast)
+library(car)
+library(rgl)
+library(plotly)
+```
+
+```{r}
+# Import data from Excel file
+data <- read_excel("C:/Users/tzp3890/OneDrive - Western Michigan University/Project 2/GS1M.xlsx")
+data2 <- read_excel("C:/Users/tzp3890/OneDrive - Western Michigan University/Project 2/DGS10.xlsx")
+```
+
+```{r}
+# Convert observation_date column to Date format
+data$observation_date <- as.Date(data$observation_date)
+data2$observation_date <- as.Date(data2$observation_date)
+```
+
+```{r}
+GS1M_values <- data$GS1M
+DGS10_values <- data2$DGS10
+```
+
+## Calculating ACFs and PACFs
+
+```{r}
+### ACF for GS1M
+acf(GS1M_values)
+```
+
+```{r}
+### PACF for GS1M
+pacf(GS1M_values)
+```
+
+```{r}
+### ACF for GS1M
+acf(DGS10_values)
+```
+
+```{r}
+### PACF for GS1M
+pacf(DGS10_values)
+```
+
+### Second Difference ACF
+
+```{r}
+pacf(diff(GS1M_values))
+```
+
+We see that each that both series are highly correlated for each of of their lags till at least lag-15 by looking at their respective ACFs but we see that if we remove the effect of shorter lags by looking at their PACFs, they are insignificant. We see that GS1M shares a slightly stronger relationship with its deeper lags than DGS10. The difference between the decreasing ACF lags and difference from PACF could suggest non stationary and using the first or second difference in model but for this time, I have decided to use the original values. 
+
+## Fitting Regressions
+
+```{r}
+# Fit Moving Average (MA) Model
+ma_model2 <- Arima(DGS10_values, order=c(0, 0, 1))
+ma_model <- Arima(GS1M_values, order=c(0, 0, 1))
+# Order(p, d, q): p=0 (AR), d=1 (differencing), q=1 (MA)
+```
+
+```{r}
+# Fit Autoregressive (AR) Model
+ar_model2 <- Arima(DGS10_values, order=c(1, 0, 0))
+ar_model <- Arima(GS1M_values, order=c(1, 0, 0))
+# Order(p, d, q): p=1 (AR), d=0 (differencing), q=0 (MA)
+```
+
+### Coefficients and Error Score for GSM1 - MA
+
+```{r}
+# Summarizing MA Model (GSM1)
+summary(ma_model)
+```
+The mean used in our model in excel is close to the intercept shown in model. Also the using the coefficient from Q4 was a good guess, the value ¬0.99 is close to the optimized value of 0.9423. The AIC is extremely high which suggests the model doesn't capture data well so should be used with caution.
+
+### Coefficients and Error Score for GSM1 - AR
+
+```{r}
+# Summarizing AR Model (GSM1)
+summary(ar_model)
+```
+
+I used the a linear regression in excel to estimate the coefficients but as we talked in class, this algorithm doesn't optimize the coefficients to minimalize the error score so our values are different. Our slope coefficient is fairly similar but the intercept are very different.
+
+### Coefficients and Error Score for DGS10 - MA
+
+```{r}
+# Summarizing MA Model (DGS10)
+summary(ma_model2)
+```
+
+Extremely high AIC. This share the same results as the moving average of GS1M as our coefficient and intercept are very similar.
+
+### Coefficients and Error Score for DGS10 - AR
+
+```{r}
+# Summarizing AR Model (DGS10)
+summary(ar_model2)
+```
+
+## Forecasts
+
+All MA models can only forecast one value into the future (h=1) since they all only use 1 lag.
+
+### Forecasts for GS1M - MA Model
+```{r}
+# Forecasting for GS1M - MA Model
+ma_forecast <- forecast(ma_model, h = 1)  # Forecast the next 10 steps
+
+# Summarizing Model
+summary(ma_forecast)
+```
+
+### Forecasts for GS1M - AR Model
+
+```{r}
+# Forecasting for GS1M - AR Model
+ar_forecast <- forecast(ar_model, h = 10)  # Forecast the next 10 steps
+
+# Summarizing Model
+summary(ar_forecast)
+```
+
+### Forecast for DGS10 - MA Model
+
+```{r}
+# Forecasting for DGS10 - MA Model
+ma_forecast2 <- forecast(ma_model2, h = 1)  # Forecast the next 10 steps
+
+# Summarizing Model
+summary(ma_forecast2)
+```
+
+### Forecast for DGS10 - AR Model
+
+```{r}
+# Forecasting for DGS10 - AR Model
+ar_forecast2 <- forecast(ar_model2, h = 10)  # Forecast the next 10 steps
+
+# Summarizing Model
+summary(ar_forecast2)
+```
+
+All models don't seem to forecast very well as very converge very quickly.
+
+### Question 8
+Considering the models programmed in Q7, I would use the AR model for GS1M since it has a lower Root Mean Squared Error (RMSE). The MA model has a better ME scored but RMSE weighs higher errors more heavily which I'd like to avoid, hence why I have decided to use RMSE. For DGS10, I would also use an AR model for the same reason: a lower RMSE score.
+
+Considering all models, I have a preference for the EMA(1) model for DGS10 because I find it easy to understand the mechanics behind and the combination of a good accuracy score and an adjustable smoothing factor allows for more insights. I value the smoothing for DGS10 over GS1M because DGS10 has a more consistent increase whilst the erratic peaks and inconsistent plateau of GS1M doesn't work when decreasing the smooth factor. 
+
+I wasn't sure about GS1M so I decided try and make my AR model more accurate by changing the parameters. I switched to using the first difference to help make the series more stationary. I also used up to 15 lags inferred from the ACF plots. I also tested up 20 lag but the error score wasn't significantly impacted. This model is the most accurate out of the models across the error scores and also has a low AIC, capturing most of the data. Also, changing the no. of lags and the order of differencing had a positive of impact on the forecast which looks a lot more reliable.
+
+```{r}
+# Plot values
+plot(data$GS1M)
+```
+
+```{r}
+# Plot first differences
+plot(diff(data$GS1M))
+```
+
+Series looks more stationary.
+
+```{r}
+Box.test(data$GS1M, lag = 15, type = "Ljung")
+```
+
+The lags exhibit serial correlation
+
+```{r}
+# Fit Autoregressive (AR) Model
+fin_mod <- Arima(GS1M_values, order=c(15, 1, 0))
+# Order(p, d, q): p=5 (AR), d=1 (differencing), q=0 (MA)
+
+summary(fin_mod)
+
+# Forecasting for AR Model
+fin_forecast <- forecast(fin_mod, h = 10)  # Forecast the next 10 steps
+
+# Summarizing Model
+summary(fin_forecast)
+```
+```{r}
+layout(matrix(1:2, nrow = 1))
+plot(fin_forecast)
+plot(fin_forecast, main = "Zoomed In" ,xlim = c(250, 300))
+```
+
+### Exploration
+
+```{r}
+# Create an empty data frame to store results
+results_df <- data.frame(p = numeric(), q = numeric(), AIC = numeric())
+
+# Define the range of p and q values
+p_values <- 1:10
+q_values <- 1:10
+
+# Loop through each combination of p and q values
+for (p in p_values) {
+  for (q in q_values) {
+    
+    # Fit ARIMA model
+    arima_model <- Arima(GS1M_values, order = c(p, 1, q))
+    
+      # Get AIC
+      aic <- AIC(arima_model)
+      
+      # Append results to data frame
+      results_df <- rbind(results_df, data.frame(p = p, q = q, AIC = aic))
+  }
+}
+
+# Print the first few rows of the results
+print(head(results_df))
+```
+
+```{r}
+#3D plot of p and q parameters of ARIMA(p,1,q) AIC scores
+plot = scatter3d(x = results_df$p, y = results_df$AIC, z = results_df$q)
+```
+
+#### The script above needs to be run in R to see the 3D plot. 
+
+The 3D scatter plots shows that p = 5, q = 4 yields the ARIMA(p,1,q) with the lowest AIC and is therefore the best model to use with a lag of one. We can also the relationship as there is the further lags seem to negatively impact the AIC score. Here is a similar interactive graph below but is somewhat harder to interpret.
+
+```{r}
+plot_ly(data = results_df, x = ~p, y = ~AIC, z = ~q, type = "scatter3d", mode = "markers")
+```
